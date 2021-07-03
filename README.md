@@ -1,12 +1,12 @@
 # markiert
-A unique-ID generator using Twitter's [Snowflake implementation](https://blog.twitter.com/engineering/en_us/a/2010/announcing-snowflake). 
+A unique ID generator using Twitter's [Snowflake specification](https://blog.twitter.com/engineering/en_us/a/2010/announcing-snowflake). 
 
 Use this generator when IDs must:
 * be generated on fault-tolerant system
 * fit into a 64-bit number
 * be sortable
 
-# Schema of 64-bit number
+# Schema of 64-bit ID
 * 1 bit reserved
 * 41 bits timestamp (in milliseconds from reference)
 * 5 bits datacenter id
