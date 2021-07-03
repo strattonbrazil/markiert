@@ -6,8 +6,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.Provides;
-import com.google.inject.name.Named;
+import com.google.inject.name.Names;
 
 import org.junit.Test;
 
@@ -18,19 +17,9 @@ public class MarkiertGeneratorTest {
         injector = Guice.createInjector(new AbstractModule() {
             protected void configure() {
                 bind(MarkiertClock.class).to(TestMarkiertClock.class);
-                bind(long.class).toInstance(fixedTime); // ignored
-            }
-
-            @Provides
-            @Named("dataCenterId") 
-            int dataCenterId() {
-                return dataCenterId;
-            }
-
-            @Provides
-            @Named("machineId") 
-            int machineId() {
-                return machineId;
+                bind(Long.class).annotatedWith(Names.named("offsetFromEpochMs")).toInstance(1000L);
+                bind(Integer.class).annotatedWith(Names.named("dataCenterId")).toInstance(dataCenterId);
+                bind(Integer.class).annotatedWith(Names.named("machineId")).toInstance(machineId);
             }
         });
 

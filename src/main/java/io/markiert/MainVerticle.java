@@ -3,64 +3,68 @@ package io.markiert;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.name.Names;
 
-import io.markiert.gen.MarkiertClock;
 import io.markiert.gen.MarkiertGenerator;
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Future;
+import io.vertx.core.Promise;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.Router;
 
 public class MainVerticle extends AbstractVerticle {
     public final String ENV_PORT_KEY = "MARKIERT_HTTP_PORT";
     public final String ENV_DATACENTER_ID_KEY = "MARKIERT_DATACENTER_ID";
     public final String ENV_MACHINE_ID_KEY = "MARKIERT_MACHINE_ID";
+    public final String ENV_EPOCH_OFFSET_KEY = "MARKIERT_EPOCH_OFFSET";
     public final int DEFAULT_HTTP_PORT = 8080;
-    public final int DEFAULT_DATACENTER_ID = 3;
+    public final int DEFAULT_DATACENTER_ID = 1;
     public final int DEFAULT_MACHINE_ID = 1;
-    
+    public final long DEFAULT_EPOCH_OFFSET = 1288834974657L; // original Snowflake epoch
+
     @Override
-    public void start(Future<Void> fut) {
+    public void start(Promise<Void> startPromise) {
         final int httpPort = getHttpPort();
 
-        startWebServer(fut, httpPort);
+        startWebServer(startPromise, httpPort);
     }
 
-    public void startWebServer(Future<Void> fut, int port) {
+    public void startWebServer(Promise<Void> startPromise, int port) {
         Injector injector = Guice.createInjector(new AbstractModule() {
             protected void configure() {
-                bind(MarkiertClock.class).to(MarkiertClock.class);
+                bindConstant().annotatedWith(Names.named("offsetFromEpochMs")).to(getEpochOffset());
+                bindConstant().annotatedWith(Names.named("dataCenterId")).to(getDatacenterId());
+                bindConstant().annotatedWith(Names.named("machineId")).to(getMachineId());
             }
         });
         MarkiertGenerator gen = injector.getInstance(MarkiertGenerator.class);
 
-        // MarkiertClock clock = new MarkiertClock(0);
-        // MarkiertGenerator gen = new MarkiertGenerator(clock, getDatacenterId(), getMachineId());
-
-        String id = String.format("%1$" + 64 + "s", Long.toBinaryString(gen.getId())).replace(' ', '0');
-        System.out.println(id);
+        Router router = Router.router(vertx);
+        router.route("/id").handler(ctx -> {
+            JsonObject root = new JsonObject();
+            root.put("id", Long.toString(gen.getId()));
+            ctx.end(root.toBuffer());
+        });
 
         vertx
             .createHttpServer()
-            .requestHandler(r -> {
-                r.response().end("<h1>Hello from my first " +
-                    "Vert.x 3 application</h1>");
-            })
+            .requestHandler(router)
             .listen(port, result -> {
                 if (result.succeeded()) {
-                    fut.complete();
+                    startPromise.complete();
                 } else {
-                    fut.fail(result.cause());
+                    startPromise.fail(result.cause());
                 }
             });
     }
 
-    public int getEnvInteger(String envKey, int defaultValue) {
+    public long getEnvLong(String envKey, long defaultValue) {
         String envValue = System.getenv(envKey);
         if (envValue == null) {
             System.err.println("environment variable '" + envKey + "' not found, defaulting to " + defaultValue);
             return defaultValue;
         }
         try {
-            return Integer.parseInt(envValue);
+            return Long.parseLong(envValue);
         } catch (NumberFormatException e) {
             System.err.println("unable to parse "  + envKey + " value of '" + "', defaulting to " + defaultValue);
             return defaultValue;
@@ -68,14 +72,19 @@ public class MainVerticle extends AbstractVerticle {
     }
 
     public int getHttpPort() {
-        return getEnvInteger(ENV_PORT_KEY, DEFAULT_HTTP_PORT);
+        return (int)getEnvLong(ENV_PORT_KEY, DEFAULT_HTTP_PORT);
     }
 
     public int getDatacenterId() {
-        return getEnvInteger(ENV_DATACENTER_ID_KEY, DEFAULT_DATACENTER_ID);
+        return (int)getEnvLong(ENV_DATACENTER_ID_KEY, DEFAULT_DATACENTER_ID);
     }
 
     public int getMachineId() {
-        return getEnvInteger(ENV_MACHINE_ID_KEY, DEFAULT_MACHINE_ID);
+        return (int)getEnvLong(ENV_MACHINE_ID_KEY, DEFAULT_MACHINE_ID);
     }
+
+    public long getEpochOffset() {
+        return getEnvLong(ENV_EPOCH_OFFSET_KEY, DEFAULT_EPOCH_OFFSET);
+    }
+
 }

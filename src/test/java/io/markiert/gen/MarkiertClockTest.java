@@ -5,6 +5,7 @@ import static org.junit.Assert.assertEquals;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.name.Names;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -17,7 +18,7 @@ public class MarkiertClockTest {
         injector = Guice.createInjector(new AbstractModule() {
             protected void configure() {
                 bind(SystemClock.class).to(TestSystemClock.class);
-                bind(long.class).toInstance(1000L);
+                bind(Long.class).annotatedWith(Names.named("offsetFromEpochMs")).toInstance(1000L);
             }
         });
     }
